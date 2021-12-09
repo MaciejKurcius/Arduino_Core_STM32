@@ -739,8 +739,8 @@ void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, PinName pin, Pi
       HAL_TIM_IC_ConfigChannel(&(_timerObj.handle), &channelIC, getChannel(timAssociatedInputChannel));
       break;
       case TIMER_INPUT_ENCODER_MODE:
-      //
       HAL_TIM_Encoder_Init(&(_timerObj.handle), &encoder_channel);
+      LL_TIM_EnableCounter(&(_timerObj.handle.Instance));
       break;
     default:
       break;
