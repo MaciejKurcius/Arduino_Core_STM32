@@ -633,6 +633,7 @@ void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, PinName pin)
   int timAssociatedInputChannel;
   TIM_OC_InitTypeDef channelOC;
   TIM_IC_InitTypeDef channelIC;
+  TIM_Encoder_InitTypeDef encoder_channel;
 
   if (timChannel == -1) {
     Error_Handler();
@@ -656,7 +657,16 @@ void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, PinName pin)
   channelIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   channelIC.ICPrescaler = TIM_ICPSC_DIV1;
   channelIC.ICFilter = 0;
-
+  //encoder mode set default values
+  encoder_channel.EncoderMode = TIM_ENCODERMODE_TI1;
+  encoder_channel.IC1Polarity = TIM_ICPOLARITY_RISING;
+  encoder_channel.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+  encoder_channel.IC1Prescaler = TIM_ICPSC_DIV1;
+  encoder_channel.IC1Filter = 0;
+  encoder_channel.IC2Polarity = TIM_ICPOLARITY_RISING;
+  encoder_channel.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+  encoder_channel.IC2Prescaler = TIM_ICPSC_DIV1;
+  encoder_channel.IC2Filter = 0;
   switch (mode) {
     case TIMER_DISABLED:
       channelOC.OCMode = TIM_OCMODE_TIMING;
@@ -727,6 +737,10 @@ void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, PinName pin)
       channelIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_FALLING;
       channelIC.ICSelection = TIM_ICSELECTION_INDIRECTTI;
       HAL_TIM_IC_ConfigChannel(&(_timerObj.handle), &channelIC, getChannel(timAssociatedInputChannel));
+      break;
+      case TIMER_INPUT_ENCODER_MODE:
+      //
+      HAL_TIM_Encoder_Init(&(-timerObj.handle), &channelIC);
       break;
     default:
       break;

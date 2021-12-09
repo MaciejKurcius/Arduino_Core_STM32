@@ -51,6 +51,7 @@ typedef enum {
   TIMER_INPUT_CAPTURE_RISING,             // == TIM_INPUTCHANNELPOLARITY_RISING
   TIMER_INPUT_CAPTURE_FALLING,            // == TIM_INPUTCHANNELPOLARITY_FALLING
   TIMER_INPUT_CAPTURE_BOTHEDGE,           // == TIM_INPUTCHANNELPOLARITY_BOTHEDGE
+  TIMER_INPUT_ENCODER_MODE,
 
   // Used 2 channels for a single pin. One channel in TIM_INPUTCHANNELPOLARITY_RISING another channel in TIM_INPUTCHANNELPOLARITY_FALLING.
   // Channels must be used by pair: CH1 with CH2, or CH3 with CH4
@@ -121,8 +122,8 @@ class HardwareTimer {
     void setCount(uint32_t val, TimerFormat_t format = TICK_FORMAT); // set timer counter to value 'val' depending on format provided
     uint32_t getCount(TimerFormat_t format = TICK_FORMAT);  // return current counter value of timer depending on format provided
 
-    void setMode(uint32_t channel, TimerModes_t mode, PinName pin = NC); // Configure timer channel with specified mode on specified pin if available
-    void setMode(uint32_t channel, TimerModes_t mode, uint32_t pin);
+    void setMode(uint32_t channel, TimerModes_t mode, PinName pin = NC, PinName pin2 = NC); // Configure timer channel with specified mode on specified pin if available
+    void setMode(uint32_t channel, TimerModes_t mode, uint32_t pin, uint32_t pin2);
 
     TimerModes_t getMode(uint32_t channel);  // Retrieve configured mode
 
