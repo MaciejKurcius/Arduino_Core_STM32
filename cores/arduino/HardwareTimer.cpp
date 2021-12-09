@@ -740,7 +740,7 @@ void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, PinName pin, Pi
       break;
       case TIMER_INPUT_ENCODER_MODE:
       //
-      HAL_TIM_Encoder_Init(&(-timerObj.handle), &encoder_channel);
+      HAL_TIM_Encoder_Init(&(_timerObj.handle), &encoder_channel);
       break;
     default:
       break;
