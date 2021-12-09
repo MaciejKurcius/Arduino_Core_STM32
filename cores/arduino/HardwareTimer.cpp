@@ -615,9 +615,9 @@ void HardwareTimer::setCount(uint32_t counter, TimerFormat_t format)
   * @param  pin: Arduino pin number, ex: D1, 1 or PA1
   * @retval None
   */
-void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, uint32_t pin)
+void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, uint32_t pin, uint32_t pin2)
 {
-  setMode(channel, mode, digitalPinToPinName(pin));
+  setMode(channel, mode, digitalPinToPinName(pin), digitalPinToPinName(pin2));
 }
 
 /**
@@ -627,7 +627,7 @@ void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, uint32_t pin)
   * @param  pin: pin name, ex: PB_0
   * @retval None
   */
-void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, PinName pin)
+void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, PinName pin, PinName pin2)
 {
   int timChannel = getChannel(channel);
   int timAssociatedInputChannel;
@@ -740,7 +740,7 @@ void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, PinName pin)
       break;
       case TIMER_INPUT_ENCODER_MODE:
       //
-      HAL_TIM_Encoder_Init(&(-timerObj.handle), &channelIC);
+      HAL_TIM_Encoder_Init(&(-timerObj.handle), &encoder_channel);
       break;
     default:
       break;
