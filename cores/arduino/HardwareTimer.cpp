@@ -35,6 +35,57 @@
 /* Private Variables */
 timerObj_t *HardwareTimer_Handle[TIMER_NUM] = {NULL};
 
+//======================ENCODER FUNCTION START ============
+
+int TimGetCounter(void){
+  LL_TIM_GetCounter(TIM1);
+}
+
+void TimStartCounter(void){
+  LL_TIM_EnableCounter(TIM1);
+}
+
+void TimInit(void){
+  TIM_Encoder_InitTypeDef sConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_HandleTypeDef htim1;
+
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 0;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 65535;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  sConfig.EncoderMode = TIM_ENCODERMODE_TI1;
+  sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC1Filter = 0;
+  sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
+  sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+  sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
+  sConfig.IC2Filter = 0;
+  if (HAL_TIM_Encoder_Init(&htim1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+voit TimStopCounter(void){
+  LL_TIM_DisableCounter(TIM1);
+}
+
+//======================ENCODER FUNCTION END===============
+
+
+
 /**
   * @brief  HardwareTimer constructor: make uninitialized timer
   *         Before calling any methods, call setup to select and setup
@@ -740,7 +791,6 @@ void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, PinName pin, Pi
       break;
       case TIMER_INPUT_ENCODER_MODE:
       HAL_TIM_Encoder_Init(&(_timerObj.handle), &encoder_channel);
-      LL_TIM_EnableCounter(_timerObj.handle.Instance);
       break;
     default:
       break;

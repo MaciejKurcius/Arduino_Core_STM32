@@ -173,6 +173,10 @@ class HardwareTimer {
 extern timerObj_t *HardwareTimer_Handle[TIMER_NUM];
 
 extern timer_index_t get_timer_index(TIM_TypeDef *htim);
+int TimGetCounter(void);
+void TimStartCounter(void);
+void TimInit(void);
+voit TimStopCounter(void);
 
 #endif /* __cplusplus */
 
