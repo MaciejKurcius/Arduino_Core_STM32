@@ -46,36 +46,46 @@ void TimStartCounter(void){
 }
 
 void TimInit(void){
-  TIM_Encoder_InitTypeDef sConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_HandleTypeDef htim1;
+LL_TIM_InitTypeDef TIM_InitStruct = {0};
 
-  htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 0;
-  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 65535;
-  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim1.Init.RepetitionCounter = 0;
-  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  sConfig.EncoderMode = TIM_ENCODERMODE_TI1;
-  sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
-  sConfig.IC1Selection = TIM_ICSELECTION_DIRECTTI;
-  sConfig.IC1Prescaler = TIM_ICPSC_DIV1;
-  sConfig.IC1Filter = 0;
-  sConfig.IC2Polarity = TIM_ICPOLARITY_RISING;
-  sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
-  sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
-  sConfig.IC2Filter = 0;
-  if (HAL_TIM_Encoder_Init(&htim1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
+  LL_GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+  /* Peripheral clock enable */
+  LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_TIM1);
+  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOE);
+  /**TIM1 GPIO Configuration
+  PE9   ------> TIM1_CH1
+  PE11   ------> TIM1_CH2
+  */
+  GPIO_InitStruct.Pin = LL_GPIO_PIN_9|LL_GPIO_PIN_11;
+  GPIO_InitStruct.Mode = LL_GPIO_MODE_ALTERNATE;
+  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+  GPIO_InitStruct.Alternate = LL_GPIO_AF_1;
+  LL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  LL_TIM_SetEncoderMode(TIM1, LL_TIM_ENCODERMODE_X2_TI1);
+  LL_TIM_IC_SetActiveInput(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_ACTIVEINPUT_DIRECTTI);
+  LL_TIM_IC_SetPrescaler(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_ICPSC_DIV1);
+  LL_TIM_IC_SetFilter(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_IC_FILTER_FDIV1);
+  LL_TIM_IC_SetPolarity(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_IC_POLARITY_RISING);
+  LL_TIM_IC_SetActiveInput(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_ACTIVEINPUT_DIRECTTI);
+  LL_TIM_IC_SetPrescaler(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_ICPSC_DIV1);
+  LL_TIM_IC_SetFilter(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_IC_FILTER_FDIV1);
+  LL_TIM_IC_SetPolarity(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_IC_POLARITY_RISING);
+  TIM_InitStruct.Prescaler = 0;
+  TIM_InitStruct.CounterMode = LL_TIM_COUNTERMODE_UP;
+  TIM_InitStruct.Autoreload = 65535;
+  TIM_InitStruct.ClockDivision = LL_TIM_CLOCKDIVISION_DIV1;
+  TIM_InitStruct.RepetitionCounter = 0;
+  LL_TIM_Init(TIM1, &TIM_InitStruct);
+  LL_TIM_DisableARRPreload(TIM1);
+  LL_TIM_SetTriggerOutput(TIM1, LL_TIM_TRGO_RESET);
+  LL_TIM_DisableMasterSlaveMode(TIM1);
 }
 
 voit TimStopCounter(void){
@@ -684,7 +694,7 @@ void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, PinName pin, Pi
   int timAssociatedInputChannel;
   TIM_OC_InitTypeDef channelOC;
   TIM_IC_InitTypeDef channelIC;
-  TIM_Encoder_InitTypeDef encoder_channel;
+  TIM_Encoder_InitTypeDef EncoderChannels;
 
   if (timChannel == -1) {
     Error_Handler();
@@ -709,15 +719,15 @@ void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, PinName pin, Pi
   channelIC.ICPrescaler = TIM_ICPSC_DIV1;
   channelIC.ICFilter = 0;
   //encoder mode set default values
-  encoder_channel.EncoderMode = TIM_ENCODERMODE_TI1;
-  encoder_channel.IC1Polarity = TIM_ICPOLARITY_RISING;
-  encoder_channel.IC1Selection = TIM_ICSELECTION_DIRECTTI;
-  encoder_channel.IC1Prescaler = TIM_ICPSC_DIV1;
-  encoder_channel.IC1Filter = 0;
-  encoder_channel.IC2Polarity = TIM_ICPOLARITY_RISING;
-  encoder_channel.IC2Selection = TIM_ICSELECTION_DIRECTTI;
-  encoder_channel.IC2Prescaler = TIM_ICPSC_DIV1;
-  encoder_channel.IC2Filter = 0;
+  EncoderChannels.EncoderMode = TIM_ENCODERMODE_TI1;
+  EncoderChannels.IC1Polarity = TIM_ICPOLARITY_RISING;
+  EncoderChannels.IC1Selection = TIM_ICSELECTION_DIRECTTI;
+  EncoderChannels.IC1Prescaler = TIM_ICPSC_DIV1;
+  EncoderChannels.IC1Filter = 0;
+  EncoderChannels.IC2Polarity = TIM_ICPOLARITY_RISING;
+  EncoderChannels.IC2Selection = TIM_ICSELECTION_DIRECTTI;
+  EncoderChannels.IC2Prescaler = TIM_ICPSC_DIV1;
+  EncoderChannels.IC2Filter = 0;
   switch (mode) {
     case TIMER_DISABLED:
       channelOC.OCMode = TIM_OCMODE_TIMING;
@@ -789,9 +799,16 @@ void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, PinName pin, Pi
       channelIC.ICSelection = TIM_ICSELECTION_INDIRECTTI;
       HAL_TIM_IC_ConfigChannel(&(_timerObj.handle), &channelIC, getChannel(timAssociatedInputChannel));
       break;
-      case TIMER_INPUT_ENCODER_MODE:
-      HAL_TIM_Encoder_Init(&(_timerObj.handle), &encoder_channel);
-      break;
+    case TIMER_INPUT_ENCODER_MODE:
+      GPIO_InitStruct.Pin = STM_LL_GPIO_PIN(digitalPinToPinName(pin))|STM_LL_GPIO_PIN(digitalPinToPinName(pin2));
+      GPIO_InitStruct.Mode = LL_GPIO_MODE_ALTERNATE;
+      GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
+      GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+      GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+      GPIO_InitStruct.Alternate = LL_GPIO_AF_1;
+      LL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+      HAL_TIM_Encoder_Init(&(_timerObj.handle), &EncoderChannels);
+    break;
     default:
       break;
   }

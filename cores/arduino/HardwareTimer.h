@@ -30,6 +30,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "timer.h"
 #include "stm32yyxx_ll_tim.h"
+#include "stm32f4xx_ll_bus.h"
 
 #if defined(HAL_TIM_MODULE_ENABLED) && !defined(HAL_TIM_MODULE_ONLY)
 
