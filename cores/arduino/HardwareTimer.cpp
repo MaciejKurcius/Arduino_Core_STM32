@@ -26,75 +26,16 @@
 #include "Arduino.h"
 #include "HardwareTimer.h"
 
+
 #if defined(HAL_TIM_MODULE_ENABLED) && !defined(HAL_TIM_MODULE_ONLY)
 
 /* Private Defines */
 #define PIN_NOT_USED 0xFF
 #define MAX_RELOAD ((1 << 16) - 1) // Currently even 32b timers are used as 16b to have generic behavior
 
+
 /* Private Variables */
 timerObj_t *HardwareTimer_Handle[TIMER_NUM] = {NULL};
-
-//======================ENCODER FUNCTION START ============
-
-int TimGetCounter(void){
-  LL_TIM_GetCounter(TIM1);
-}
-
-void TimStartCounter(void){
-  LL_TIM_EnableCounter(TIM1);
-}
-
-void TimInit(void){
-LL_TIM_InitTypeDef TIM_InitStruct = {0};
-
-  LL_GPIO_InitTypeDef GPIO_InitStruct = {0};
-
-  /* Peripheral clock enable */
-  LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_TIM1);
-  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOE);
-  /**TIM1 GPIO Configuration
-  PE9   ------> TIM1_CH1
-  PE11   ------> TIM1_CH2
-  */
-  GPIO_InitStruct.Pin = LL_GPIO_PIN_9|LL_GPIO_PIN_11;
-  GPIO_InitStruct.Mode = LL_GPIO_MODE_ALTERNATE;
-  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-  GPIO_InitStruct.Alternate = LL_GPIO_AF_1;
-  LL_GPIO_Init(GPIOE, &GPIO_InitStruct);
-
-  /* USER CODE BEGIN TIM1_Init 1 */
-
-  /* USER CODE END TIM1_Init 1 */
-  LL_TIM_SetEncoderMode(TIM1, LL_TIM_ENCODERMODE_X2_TI1);
-  LL_TIM_IC_SetActiveInput(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_ACTIVEINPUT_DIRECTTI);
-  LL_TIM_IC_SetPrescaler(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_ICPSC_DIV1);
-  LL_TIM_IC_SetFilter(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_IC_FILTER_FDIV1);
-  LL_TIM_IC_SetPolarity(TIM1, LL_TIM_CHANNEL_CH1, LL_TIM_IC_POLARITY_RISING);
-  LL_TIM_IC_SetActiveInput(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_ACTIVEINPUT_DIRECTTI);
-  LL_TIM_IC_SetPrescaler(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_ICPSC_DIV1);
-  LL_TIM_IC_SetFilter(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_IC_FILTER_FDIV1);
-  LL_TIM_IC_SetPolarity(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_IC_POLARITY_RISING);
-  TIM_InitStruct.Prescaler = 0;
-  TIM_InitStruct.CounterMode = LL_TIM_COUNTERMODE_UP;
-  TIM_InitStruct.Autoreload = 65535;
-  TIM_InitStruct.ClockDivision = LL_TIM_CLOCKDIVISION_DIV1;
-  TIM_InitStruct.RepetitionCounter = 0;
-  LL_TIM_Init(TIM1, &TIM_InitStruct);
-  LL_TIM_DisableARRPreload(TIM1);
-  LL_TIM_SetTriggerOutput(TIM1, LL_TIM_TRGO_RESET);
-  LL_TIM_DisableMasterSlaveMode(TIM1);
-}
-
-voit TimStopCounter(void){
-  LL_TIM_DisableCounter(TIM1);
-}
-
-//======================ENCODER FUNCTION END===============
-
-
 
 /**
   * @brief  HardwareTimer constructor: make uninitialized timer
@@ -280,12 +221,16 @@ void HardwareTimer::resume(void)
     // Start timer in Time base mode. Required when there is no channel used but only update interrupt.
     HAL_TIM_Base_Start(&(_timerObj.handle));
   }
-
   // Resume all channels
   resumeChannel(1);
   resumeChannel(2);
   resumeChannel(3);
   resumeChannel(4);
+}
+
+void HardwareTimer::resumeIT(void)
+{
+  HAL_TIM_IRQHandler(&(_timerObj.handle));
 }
 
 /**
@@ -602,7 +547,6 @@ void HardwareTimer::setOverflow(uint32_t overflow, TimerFormat_t format)
       PeriodTicks = overflow;
       break;
   }
-
   if (PeriodTicks > 0) {
     // The register specifies the maximum value, so the period is really one tick longer
     ARR_RegisterValue = PeriodTicks - 1;
@@ -640,6 +584,26 @@ uint32_t HardwareTimer::getCount(TimerFormat_t format)
   }
   return return_value;
 }
+
+/**
+  * @brief  Retrieve timer counter value
+  * @param  timer_overflow_value max timer count value
+  * @retval if overflow: 1
+  *         if underflow: -1
+  *         else: 0
+  */
+int8_t HardwareTimer::getUnderOverFlow(uint16_t timer_overflow_value){
+  if (__HAL_TIM_GET_FLAG(&(_timerObj.handle), TIM_FLAG_UPDATE) && this->getCount() < timer_overflow_value/2){
+    __HAL_TIM_CLEAR_IT(&(_timerObj.handle), TIM_IT_UPDATE);
+    return 1;  
+  }
+  if (__HAL_TIM_GET_FLAG(&(_timerObj.handle), TIM_FLAG_UPDATE) && this->getCount() >= timer_overflow_value/2){
+    __HAL_TIM_CLEAR_IT(&(_timerObj.handle), TIM_IT_UPDATE);
+    return -1;  
+  }
+  return 0;
+}
+
 
 /**
   * @brief  Set timer counter value
@@ -695,12 +659,18 @@ void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, PinName pin, Pi
   TIM_OC_InitTypeDef channelOC;
   TIM_IC_InitTypeDef channelIC;
   TIM_Encoder_InitTypeDef EncoderChannels;
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  GPIO_TypeDef *gpio = set_GPIO_Port_Clock(STM_PORT(pin));
+  GPIO_TypeDef *gpio2 = set_GPIO_Port_Clock(STM_PORT(pin2));
+  uint32_t afnum = STM_PIN_AFNUM(pinmap_function(pin, PinMap_TIM));
+  uint32_t afnum2 = STM_PIN_AFNUM(pinmap_function(pin2, PinMap_TIM));
 
   if (timChannel == -1) {
     Error_Handler();
   }
 
-  /* Configure some default values. Maybe overwritten later */
+  /* Start configure some default values. Maybe overwritten later */
   channelOC.OCMode = TIMER_NOT_USED;
   channelOC.Pulse = __HAL_TIM_GET_COMPARE(&(_timerObj.handle), timChannel);  // keep same value already written in hardware <register
   channelOC.OCPolarity = TIM_OCPOLARITY_HIGH;
@@ -718,8 +688,7 @@ void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, PinName pin, Pi
   channelIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   channelIC.ICPrescaler = TIM_ICPSC_DIV1;
   channelIC.ICFilter = 0;
-  //encoder mode set default values
-  EncoderChannels.EncoderMode = TIM_ENCODERMODE_TI1;
+  //Encoder mode set default values
   EncoderChannels.IC1Polarity = TIM_ICPOLARITY_RISING;
   EncoderChannels.IC1Selection = TIM_ICSELECTION_DIRECTTI;
   EncoderChannels.IC1Prescaler = TIM_ICPSC_DIV1;
@@ -728,6 +697,10 @@ void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, PinName pin, Pi
   EncoderChannels.IC2Selection = TIM_ICSELECTION_DIRECTTI;
   EncoderChannels.IC2Prescaler = TIM_ICPSC_DIV1;
   EncoderChannels.IC2Filter = 0;
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  /* Stop configure some default values. Maybe overwritten later */
+
   switch (mode) {
     case TIMER_DISABLED:
       channelOC.OCMode = TIM_OCMODE_TIMING;
@@ -799,16 +772,38 @@ void HardwareTimer::setMode(uint32_t channel, TimerModes_t mode, PinName pin, Pi
       channelIC.ICSelection = TIM_ICSELECTION_INDIRECTTI;
       HAL_TIM_IC_ConfigChannel(&(_timerObj.handle), &channelIC, getChannel(timAssociatedInputChannel));
       break;
-    case TIMER_INPUT_ENCODER_MODE:
-      GPIO_InitStruct.Pin = STM_LL_GPIO_PIN(digitalPinToPinName(pin))|STM_LL_GPIO_PIN(digitalPinToPinName(pin2));
-      GPIO_InitStruct.Mode = LL_GPIO_MODE_ALTERNATE;
-      GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
-      GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-      GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-      GPIO_InitStruct.Alternate = LL_GPIO_AF_1;
-      LL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+    case TIMER_INPUT_ENCODER_MODE1:
+    case TIMER_INPUT_ENCODER_MODE2:
+    case TIMER_INPUT_ENCODER_MODE12:
+      switch (mode){
+        case TIMER_INPUT_ENCODER_MODE1:
+          EncoderChannels.EncoderMode = TIM_ENCODERMODE_TI1;
+          break;
+        case TIMER_INPUT_ENCODER_MODE2:
+          EncoderChannels.EncoderMode = TIM_ENCODERMODE_TI2;
+          break;
+        case TIMER_INPUT_ENCODER_MODE12:
+          EncoderChannels.EncoderMode = TIM_ENCODERMODE_TI12;
+          break;
+        default:
+          break;
+      }
+      set_GPIO_Port_Clock(STM_PORT(pin));
+      set_GPIO_Port_Clock(STM_PORT(pin2));
+      GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+      GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+      GPIO_InitStruct.Pull = GPIO_NOPULL;
+      GPIO_InitStruct.Pin = STM_LL_GPIO_PIN(pin);
+      GPIO_InitStruct.Alternate = afnum;
+      HAL_GPIO_Init(gpio, &GPIO_InitStruct);
+      GPIO_InitStruct.Pin = STM_LL_GPIO_PIN(pin2);
+      GPIO_InitStruct.Alternate = afnum2;
+      HAL_GPIO_Init(gpio2, &GPIO_InitStruct);
+      //pin_SetAFPin(gpio, pin, afnum);
+      //pin_SetAFPin(gpio2, pin2, afnum2);
       HAL_TIM_Encoder_Init(&(_timerObj.handle), &EncoderChannels);
-    break;
+      HAL_TIMEx_MasterConfigSynchronization(&(_timerObj.handle), &sMasterConfig);
+      break;
     default:
       break;
   }
